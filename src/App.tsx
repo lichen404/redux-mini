@@ -19,11 +19,6 @@ const User: FC = () => {
 
 const appContext = createContext<any>(null);
 
-const FirstChild: FC = () => <section>大儿子<User/></section>;
-
-const SecondChild: FC = () => <section>二儿子<Wrapper/></section>;
-
-const ThirdChild: FC = () => <section>三儿子</section>;
 
 
 const reducer: Reducer<User> = (state, {type, payload}) => {
@@ -36,19 +31,21 @@ const reducer: Reducer<User> = (state, {type, payload}) => {
         return state;
     }
 };
+type Props<T = any> = {
+    dispatch: (action: Action<T>) => void,
+    state: T,
+    [key: string]: any
+}
 
-const Wrapper = () => {
+const connect: <T = any>(Component: FC<Props<T>>) => FC<any> = (Component) => {
     const {appState, setAppState} = useContext(appContext);
     const dispatch = (action: Action<User>) => {
         setAppState(reducer(appState, action));
     };
-    return <UserModifier dispatch={dispatch} state={appState}/>;
+    return (props) => <Component dispatch={dispatch} state={appState} {...props}/>;
 };
-type Props<T> = {
-    dispatch: (action: Action<T>) => void,
-    state: T
-}
-const UserModifier: FC<Props<User>> = ({dispatch, state}) => {
+
+const UserModifier = connect<User>(({dispatch, state}) => {
     return (<div>
         <input type="text" value={state.name} onChange={(e) => {
             dispatch({
@@ -58,8 +55,13 @@ const UserModifier: FC<Props<User>> = ({dispatch, state}) => {
             ;
         }}/>
     </div>);
-};
+});
 
+const FirstChild: FC = () => <section>大儿子<User/></section>;
+
+const SecondChild: FC = () => <section>二儿子<UserModifier/></section>;
+
+const ThirdChild: FC = () => <section>三儿子</section>;
 
 function App() {
     const [appState, setAppState] = useState({
