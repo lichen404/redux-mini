@@ -1,8 +1,11 @@
 import React from 'react';
 import {useState, useContext, createContext, FC} from 'react';
 
+type Action<T = any> = {
+    type: string, payload: Partial<T>
+}
 
-type Reducer<T> = (state: T, action: { type: string, payload: Partial<T> }) => T
+type Reducer<T = any> = (state: T, action: Action<T>) => T
 
 type User = {
     name: string,
@@ -18,7 +21,7 @@ const appContext = createContext<any>(null);
 
 const FirstChild: FC = () => <section>大儿子<User/></section>;
 
-const SecondChild: FC = () => <section>二儿子<UserModifier/></section>;
+const SecondChild: FC = () => <section>二儿子<Wrapper/></section>;
 
 const ThirdChild: FC = () => <section>三儿子</section>;
 
@@ -33,16 +36,25 @@ const reducer: Reducer<User> = (state, {type, payload}) => {
         return state;
     }
 };
-const UserModifier: FC = () => {
+
+const Wrapper = () => {
     const {appState, setAppState} = useContext(appContext);
+    const dispatch = (action: Action<User>) => {
+        setAppState(reducer(appState, action));
+    };
+    return <UserModifier dispatch={dispatch} state={appState}/>;
+};
+type Props<T> = {
+    dispatch: (action: Action<T>) => void,
+    state: T
+}
+const UserModifier: FC<Props<User>> = ({dispatch, state}) => {
     return (<div>
-        <input type="text" value={appState.user.name} onChange={(e) => {
-            const newState = reducer(appState, {
-                    type: 'updateUser',
-                    payload: {name: e.target.value}
-                }
-            );
-            setAppState(newState)
+        <input type="text" value={state.name} onChange={(e) => {
+            dispatch({
+                type: 'updateUser',
+                payload: {name: e.target.value}
+            })
             ;
         }}/>
     </div>);
