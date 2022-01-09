@@ -1,64 +1,11 @@
-import React, {useEffect} from 'react';
-import {useState, useContext, createContext, FC} from 'react';
-
-type Action<T = any> = {
-    type: string, payload: Partial<T>
-}
-
-type Reducer<T = any> = (state: T, action: Action<T>) => T
+import React, {FC, useEffect} from 'react';
+import {connect, createStore, Provider} from "./redux";
 
 type User = {
     name: string,
     age: number
 }
-type Store<T = any> = {
-    state: T,
-    setState: (newState: T) => void,
-    listeners: ((arg: any) => void)[],
-    subscribe: (fn: (arg: any) => void) => () => void
-}
-
-const connect: <T = any>(Component: FC<Props<T>>) => FC<any> = (Component) => {
-    return (props) => {
-        const [, update] = useState({});
-        useEffect(() => {
-            store.subscribe(() => {
-                update({});
-            });
-        }, []);
-        const {state, setState} = useContext(appContext);
-        const dispatch = (action: Action<User>) => {
-            setState(reducer(state, action));
-            update({});
-        };
-        return <Component dispatch={dispatch} state={state} {...props}/>;
-    };
-};
-
-const User: FC = connect<User>(({state}) => {
-    return <div>User:{state.name}</div>;
-});
-
-const appContext = createContext<any>(null);
-
-
-const store: Store<User> = {
-    state: {name: 'frank', age: 18},
-    setState(newState) {
-        store.state = newState;
-        store.listeners.map(fn => fn(store.state));
-    },
-    listeners: [],
-    subscribe(fn) {
-        store.listeners.push(fn);
-        return () => {
-            const index = store.listeners.indexOf(fn);
-            store.listeners.splice(index, 1);
-        };
-    }
-};
-
-const reducer: Reducer<User> = (state, {type, payload}) => {
+const store = createStore<User>((state, {type, payload}) => {
     if (type === 'updateUser') {
         return {
             ...state,
@@ -67,23 +14,41 @@ const reducer: Reducer<User> = (state, {type, payload}) => {
     } else {
         return state;
     }
-};
-type Props<T = any> = {
-    dispatch: (action: Action<T>) => void,
-    state: T,
-    [key: string]: any
+}, {
+    name: "lichen",
+    age: 18
+
+})
+
+const User: FC = connect<User>()(({state}) => {
+    return <div>User:{state.name}</div>;
+});
+
+const userSelector = (state: User) => {
+    return {
+        name: state.name,
+        age: state.age
+    }
 }
 
+const userDispatcher = (dispatch: any) => {
+    return {
+        updateUser(payload: any) {
+            dispatch({type: 'updateUser', payload})
+        }
+    }
+}
+// 一个可以复用的高阶函数，把读写接口传给需要的组件
+const connectToUser = connect<User>(userSelector, userDispatcher)
 
 
-const UserModifier = connect<User>(({dispatch, state}) => {
+const UserModifier = connectToUser
+(({updateUser, name}) => {
     return (<div>
-        <input type="text" value={state.name || ''} onChange={(e) => {
-            dispatch({
-                type: 'updateUser',
-                payload: {name: e.target.value}
-            })
-            ;
+        <input type="text" value={name || ''} onChange={(e) => {
+            updateUser(
+                {name: e.target.value}
+            );
         }}/>
     </div>);
 });
@@ -98,18 +63,19 @@ const SecondChild: FC = () => {
     return <section>二儿子<UserModifier/></section>;
 };
 
-const ThirdChild: FC = () => {
+const ThirdChild: FC = connectToUser(({age}) => {
     console.log('三儿子执行了');
-    return <section>三儿子</section>;
-};
+    return <section>三儿子{age}岁</section>;
+});
 
 function App() {
     return (
-        <appContext.Provider value={store}>
+        <Provider
+            store={store}>
             <FirstChild/>
             <SecondChild/>
             <ThirdChild/>
-        </appContext.Provider>
+        </Provider>
 
     );
 }
