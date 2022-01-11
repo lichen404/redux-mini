@@ -1,22 +1,19 @@
 import React, {createContext, FC, useContext, useEffect, useState} from "react";
 
-type Action<T = any> = {
+export type Action<T = any> = {
     type: string, payload: Partial<T>
 }
 
 type Reducer<T = any> = (state: T, action: Action<T>) => T
 
-type User = {
-    name: string,
-    age: number
-}
 
-type Store<T = any> = {
+export type Store<T = any> = {
     state?: T,
     setState: (newState: T) => void,
     listeners: ((arg: any) => void)[],
     subscribe: (fn: (arg: any) => void) => () => void,
-    reducer?: Reducer<T>
+    reducer?: Reducer<T>,
+    dispatch: ((action: Action<T>) => void)
 }
 
 
@@ -41,13 +38,32 @@ const changed = (oldState: any, newState: any) => {
 const appContext = createContext<any>(null);
 
 
-export const Provider = ({store,children}:any)=>{
+export const Provider = ({store, children}: any) => {
     return (
         <appContext.Provider value={store}>
             {children}
         </appContext.Provider>
     )
 }
+
+let store: Store = {
+    setState(newState) {
+        store.state = newState;
+        store.listeners.map(fn => fn(store.state));
+    },
+    dispatch: (action) => {
+        store.setState(store.reducer && store.reducer(store.state, action))
+    },
+    listeners: [],
+    subscribe(fn) {
+        store.listeners.push(fn);
+        return () => {
+            const index = store.listeners.indexOf(fn);
+            store.listeners.splice(index, 1);
+        };
+    },
+
+};
 
 export const connect: <T = any>(selector?: (state: T) => Partial<T>, mapDispatchToProps?: (dispatch: any) => any) => (Component: FC<Props<Partial<T>>>) => FC<any> = (selector, mapDispatchToProps) => (Component) => {
     return (props) => {
@@ -62,37 +78,30 @@ export const connect: <T = any>(selector?: (state: T) => Partial<T>, mapDispatch
                 }
             });
         }, [selector]);
-        const {state, setState} = useContext(appContext);
-        const dispatch = (action: Action<User>) => {
-            setState(store.reducer && store.reducer(state, action));
-            update({});
-        };
-        const data = selector ? selector(state) : {state}
-        const dispatcher = mapDispatchToProps ? mapDispatchToProps(dispatch) : {dispatch}
+        const data = selector ? selector(store.state) : {state: store.state}
+        const dispatcher = mapDispatchToProps ? mapDispatchToProps(store.dispatch) : {dispatch: store.dispatch}
         return <Component {...dispatcher} {...data} {...props}/>;
     };
 };
 
-const store: Store = {
-    setState(newState) {
-        store.state = newState;
-        store.listeners.map(fn => fn(store.state));
-    },
-    listeners: [],
-    subscribe(fn) {
-        store.listeners.push(fn);
-        return () => {
-            const index = store.listeners.indexOf(fn);
-            store.listeners.splice(index, 1);
-        };
-    },
 
-};
-
-export const createStore:<T>(reducer:Reducer<T>,initState:T)=>Store<T> = (reducer, initState) => {
+export const createStore: <T>(reducer: Reducer<T>, initState: T, storeWithMiddleware?: Store<T>) => Store<T> = (reducer, initState, storeWithMiddleware) => {
     store.state = initState;
     store.reducer = reducer;
-    return store;
+    store = storeWithMiddleware ? {
+        ...store,
+        ...storeWithMiddleware
+    } : store
+    return storeWithMiddleware || store;
+}
+
+export const applyMiddleware = (middlewares: any[]) => {
+    // 越往后的模块越先执行，所以要调换顺序
+    middlewares = middlewares.slice()
+    middlewares.reverse()
+    let dispatch = store.dispatch
+    middlewares.forEach(middleware => (dispatch = middleware(store)(dispatch)))
+    return Object.assign({}, store, {dispatch})
 }
 
 

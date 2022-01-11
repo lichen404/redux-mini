@@ -1,5 +1,6 @@
 import React, {FC, useEffect} from 'react';
-import {connect, createStore, Provider} from "./redux";
+import {applyMiddleware, connect, createStore, Provider} from "./redux";
+import {reduxPromise} from "./middlewares/redux-promise";
 
 type User = {
     name: string,
@@ -18,7 +19,7 @@ const store = createStore<User>((state, {type, payload}) => {
     name: "lichen",
     age: 18
 
-})
+}, applyMiddleware([reduxPromise]))
 
 const User: FC = connect<User>()(({state}) => {
     return <div>User:{state.name}</div>;
@@ -34,7 +35,14 @@ const userSelector = (state: User) => {
 const userDispatcher = (dispatch: any) => {
     return {
         updateUser(payload: any) {
-            dispatch({type: 'updateUser', payload})
+
+            dispatch(new Promise((resolve => {
+                setTimeout(
+                    () => {
+                        resolve({type: 'updateUser', payload})
+                    }
+                    , 1000)
+            })))
         }
     }
 }
