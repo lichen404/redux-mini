@@ -10,11 +10,11 @@ export const reduxPromise: (store: Store) => any = (store) => {
                         newDispatch(payload)
                     })
                 } else {
-                    store.dispatch(action)
+                   return next(action)
                 }
             }
-            newDispatch(action)
-            return next(action)
+           return  newDispatch(action)
+
         }
     }
 }

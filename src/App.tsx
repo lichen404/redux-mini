@@ -1,6 +1,8 @@
 import React, {FC, useEffect} from 'react';
 import {applyMiddleware, connect, createStore, Provider} from "./redux";
 import {reduxPromise} from "./middlewares/redux-promise";
+import {reduxThunk} from "./middlewares/redux-thunk";
+import {reduxLog} from "./middlewares/redux-log";
 
 type User = {
     name: string,
@@ -19,7 +21,7 @@ const store = createStore<User>((state, {type, payload}) => {
     name: "lichen",
     age: 18
 
-}, applyMiddleware([reduxPromise]))
+}, applyMiddleware([reduxPromise, reduxThunk,reduxLog]))
 
 const User: FC = connect<User>()(({state}) => {
     return <div>User:{state.name}</div>;
@@ -31,10 +33,16 @@ const userSelector = (state: User) => {
         age: state.age
     }
 }
+const userAgeSelector = (state: User) => {
+    return {
+        age: state.age
+    }
+}
+
 
 const userDispatcher = (dispatch: any) => {
     return {
-        updateUser(payload: any) {
+        updateName(payload: any) {
 
             dispatch(new Promise((resolve => {
                 setTimeout(
@@ -43,6 +51,13 @@ const userDispatcher = (dispatch: any) => {
                     }
                     , 1000)
             })))
+        },
+        updateAge(payload: any) {
+            dispatch((dispatch: any) => {
+                setTimeout(() => {
+                    dispatch({type: 'updateUser', payload})
+                }, 1000)
+            })
         }
     }
 }
@@ -51,11 +66,16 @@ const connectToUser = connect<User>(userSelector, userDispatcher)
 
 
 const UserModifier = connectToUser
-(({updateUser, name}) => {
+(({updateName, name, age, updateAge}) => {
     return (<div>
         <input type="text" value={name || ''} onChange={(e) => {
-            updateUser(
+            updateName(
                 {name: e.target.value}
+            );
+        }}/>
+        <input type="text" value={age || ''} onChange={(e) => {
+            updateAge(
+                {age: e.target.value}
             );
         }}/>
     </div>);
@@ -71,7 +91,7 @@ const SecondChild: FC = () => {
     return <section>二儿子<UserModifier/></section>;
 };
 
-const ThirdChild: FC = connectToUser(({age}) => {
+const ThirdChild: FC = connect<User>(userAgeSelector)(({age}) => {
     console.log('三儿子执行了');
     return <section>三儿子{age}岁</section>;
 });

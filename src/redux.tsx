@@ -9,6 +9,7 @@ type Reducer<T = any> = (state: T, action: Action<T>) => T
 
 export type Store<T = any> = {
     state?: T,
+    getState: () => T;
     setState: (newState: T) => void,
     listeners: ((arg: any) => void)[],
     subscribe: (fn: (arg: any) => void) => () => void,
@@ -50,6 +51,9 @@ let store: Store = {
     setState(newState) {
         store.state = newState;
         store.listeners.map(fn => fn(store.state));
+    },
+    getState() {
+        return store.state
     },
     dispatch: (action) => {
         store.setState(store.reducer && store.reducer(store.state, action))
